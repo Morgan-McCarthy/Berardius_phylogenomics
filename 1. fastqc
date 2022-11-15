@@ -15,3 +15,11 @@ for file in *fastq.gz
 do 
 fastqc ${file} 
 done 
+
+
+
+After running fastqc move the output files into a pre_trim directory and enter the directory. Run multiqc on all the individual fastqc files.
+
+module load miniconda
+conda activate /projects/mjolnir1/apps/conda/multiqc-1.12/
+multiqc .

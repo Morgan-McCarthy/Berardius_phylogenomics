@@ -10,13 +10,14 @@
 #SBATCH --time=5:00:00 # Time limit hrs:min:sec
 #SBATCH --output=BBDUK.log # Standard output/error
 ############################################
+module load miniconda
 conda activate bbmap
 #ref - 
 #ktrim - Trim reads to remove bases matching reference kmers to the right
 #k - Kmer length used for finding contaminants.  Contaminants shorter than k will not be found.  k must be at least 1.
 #mink - Look for shorter kmers at read tips down to this length, when k-trimming or masking
-#hdist -
-#tbo - 
+#hdist - Maximum Hamming distance for ref kmers (subs only)
+#tbo - Trim adapters based on where paired reads overlap.
 #qtrim - Trim read ends to remove bases with quality below trimq.Performed AFTER looking for kmers.Values: rl (trim both ends)
 #trimq - Regions with average quality BELOW this will be trimmed
 #maq - Reads with average quality (after trimming) below this will be discarded

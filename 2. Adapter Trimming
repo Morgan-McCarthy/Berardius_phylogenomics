@@ -1,0 +1,25 @@
+#!/bin/bash
+#SBATCH --job-name=BBDUK # Job name
+#SBATCH -e BBDUK.error
+#SBATCH --mail-type=ALL # Mail events (BEGIN, END, FAIL, ALL)
+#SBATCH --mail-user=morgan@bio.ku.dk # Where to send mail
+#SBATCH --ntasks=1 # Run a single task
+#SBATCH --cpus-per-task=10 # Number of CPU cores per task
+#SBATCH --mem=2gb
+#SBATCH --nodes=1
+#SBATCH --time=5:00:00 # Time limit hrs:min:sec
+#SBATCH --output=BBDUK.log # Standard output/error
+############################################
+conda activate bbmap
+#ref - 
+#ktrim - Trim reads to remove bases matching reference kmers to the right
+#k - Kmer length used for finding contaminants.  Contaminants shorter than k will not be found.  k must be at least 1.
+#mink - Look for shorter kmers at read tips down to this length, when k-trimming or masking
+#hdist -
+#tbo - 
+#qtrim - Trim read ends to remove bases with quality below trimq.Performed AFTER looking for kmers.Values: rl (trim both ends)
+#trimq - Regions with average quality BELOW this will be trimmed
+#maq - Reads with average quality (after trimming) below this will be discarded
+#minlen - Reads shorter than this after trimming will be discarded.  Pairs will be discarded if both are shorter
+
+bbduk.sh -Xmx30g in1=file_1.fq.gz in2=file_2.fq.gz out1=file_1.BBDUK.fastq.gz out2=file_2.BBDUK.fastq.gz ref=adapters ktrim=r k=23 mink=8 hdist=1 tbo qtrim=rl trimq=15 maq=20 minlength=40

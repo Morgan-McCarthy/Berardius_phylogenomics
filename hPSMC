@@ -1,1 +1,13 @@
 To run the hPSMC analysis
+
+1) The first step is to call a consensus genome from the mapped BAM file
+
+#This is a loop that iterates through a directory with the BAM files of interest and creates a consensus sequence.
+module load angsd
+for file in *.bam
+do
+ID=`echo ${file} | cut -f1 -d "_"`
+echo ${ID}
+angsd -i ${file} -nThreads 28 -doFasta 2 -minQ 25 -minmapq 25 -uniqueonly 1 -remove_bads 1 -setMinDepthInd 5 -doCounts 1 -out 
+${ID}_aligned_sorted_unique 
+done 

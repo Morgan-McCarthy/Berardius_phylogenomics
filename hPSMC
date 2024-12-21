@@ -1,8 +1,10 @@
 To run the hPSMC analysis
 
-1) The first step is to call a consensus genome from the mapped BAM file
+1) The first step is to call a consensus genome from the mapped BAM files. These files have already been sorted with samtools and the duplicates removed.
 
 #This is a loop that iterates through a directory with the BAM files of interest and creates a consensus sequence.
+#-doFasta 2; call consensus base
+
 module load angsd
 for file in *.bam
 do
@@ -11,3 +13,107 @@ echo ${ID}
 angsd -i ${file} -nThreads 28 -doFasta 2 -minQ 25 -minmapq 25 -uniqueonly 1 -remove_bads 1 -setMinDepthInd 5 -doCounts 1 -out 
 ${ID}_aligned_sorted_unique 
 done 
+
+
+2) Next we need to combine consensus sequences from two species to create a pseudodiploid
+#The python script for this step can be downloaded from the Cahill et al. 2016 repository (https://github.com/jacahill/hPSMC/tree/master)
+
+module load python
+python psmcfa_from_2_fastas.py -b10 -m5 species1.aligned_sorted_unique.fasta species2.aligned_sorted_unique.fasta > hPSMC.species1.species2.psmcfa
+
+3) Next run PSMC as one would do normally
+hPSMC.species1.species2.psmcfa
+psmc -N25 -t15 -r5 -p "4+25*2+4+6" -o species1.species2.psmc species1.species2.psmcfa
+
+4) Plot the output but remember to include the -s 10 flag
+#-u is the mutation rate
+#-g is the generation time
+
+psmc_plot.pl -u 2.36e-8 -g 25.9 -s 10 -RM "species1.species2" species1.species2.out species1.species2.psmc
+
+At this stage view the text-file output to determine the pre-divergence Ne. This is intepreted as the point where NE increases very drastically.
+I've copied the top few lines of an example output. The second column is the Ne, so in this case, I would choose 1.56 (which is 15,600 because this column is Ne * 10,000)
+0	3285755.73581677	0.006313	0.000000	0.000000
+17136.4587150424	3285755.73581677	0.006838	0.000000	0.000000
+35698.0339269068	8388165.25794203	0.002901	0.000000	0.000000
+55800.2198813559	8388165.25794203	0.003142	0.000000	0.000000
+77572.9476048729	10526950.380935	0.002712	0.000000	0.000000
+101156.460110169	10526950.380935	0.002937	0.000000	0.000000
+126697.187601695	3496482.36206071	0.009578	0.000000	0.000000
+154362.184256356	3496482.36206071	0.010374	0.000000	0.000000
+184324.691442797	28347.9963749137	1.385910	0.000002	0.000001
+216778.574502119	28347.9963749137	1.501104	0.000002	0.000002
+251925.948364407	1326.12676020286	34.754659	0.000055	0.000053
+289995.739123941	1326.12676020286	37.641471	0.000060	0.000072
+331229.247258475	108.914672995763	496.203763	0.000790	0.001049
+375888.39721822	108.914672995763	537.010715	0.000855	0.001253
+424257.799823093	28.4788432929025	2219.586925	0.003535	0.005181
+476646.814659958	28.4788432929025	2395.242587	0.003814	0.005539
+533389.550082627	17.3913359777542	4225.792357	0.006729	0.009240
+594846.92560911	17.3913359777542	4544.743636	0.007237	0.008918
+661410.796716102	8.90842934798729	9500.279237	0.015128	0.017261
+733503.954838983	8.90842934798729	10124.203223	0.016122	0.017411
+811588.376960805	3.89339989088983	24365.318560	0.038800	0.040523
+896161.100817797	3.89339989088983	25264.115775	0.040231	0.041650
+987762.474488348	2.12891951059322	46782.354053	0.074497	0.075779
+1086972.03159852	2.12891951059322	46143.789271	0.073480	0.073918
+1194427.05289725	1.5677085720339	60204.655570	0.095871	0.095163
+1310812.25427013	1.5677085720339	56178.907072	0.089461	0.087879
+1436865.97393114	1.45641875	55388.005543	0.088201	0.086110
+1573392.54680614	1.45641875	49701.808830	0.079146	0.076728
+1721266.42932733	1.60924318220339	40127.557505	0.063900	0.061917
+1881423.94984428	1.60924318220339	35593.560470	0.056680	0.054766
+2054892.18218538	1.98382309586864	25712.823602	0.040946	0.039759
+2242772.44647987	1.98382309586864	23029.509746	0.036673	0.035711
+2446265.05792479	2.57364083792373	16027.376856	0.025522	0.025058
+2666665.20199047	2.57364083792373	14618.708627	0.023279	0.022991
+2905377.37120127	3.34309417637712	10341.380013	0.016468	0.016384
+3163927.73951907	3.34309417637712	9591.136985	0.015273	0.015292
+3443957.97515148	4.14327245603814	7203.220218	0.011471	0.011546
+3747258.23890784	4.14327245603814	6736.552663	0.010727	0.010872
+
+5) Next you create a file which will be used to run simulations to infer end of geneflow. I've added quite a 1,300,000 starting from 200,000 up to 1,500,000 ya. I  split this time range by 27 (-s 27) which will run simulations for every 50,000 years. To figure out this out take the difference between u and l (1500000 - 200000) and divide it by 50,000. Then add 1 to the output. In this case that is 26 +1 = 27.
+#-H here is the directory where I have all of the Cahill et al. 2016 scripts downloaded
+#-N is the predivergence Ne determined from above
+hPSMC_quantify_split_time.py -H hPSMC-master/ -N 15,600 -l 200000 -u 1500000 -s 27 -p 5 -o species1.species2. species1.species2.psmc > species1.species2.simulations.sh
+
+6) You need to install hPSMC here
+#module load python/v2.7.17
+#module load psmc
+#module load ms
+
+#Now create a shell script to run the analysis
+module load miniconda
+conda activate hpsmc
+module load psmc
+
+bash species1.species2.simulations.sh
+
+#From this output you will get a series of of .psmc files for each simulated interval (e.g. 200000, 250000, 300000 ....) and you plot the psmc file as you did before. 
+
+species1.species2.300000.ms_sim.psmc
+
+for file in *.ms_sim.psmc 
+do 
+psmc_plot.pl -u 2.36e-8 -g 25.9 -s 10 -RM "test" ${file}.out ${file}
+done 
+
+#####################################################
+#####################################################
+#####################################################
+
+Nnow the output files have been generated and you need to visualize the simulated data compared to your actual data
+
+#To make things easier for plotting I had the simulation year as the third column for each output text file.
+#Add a third column that is the simulation name (year)
+#At this point it is a good idea to collect all of the simulations text files in a separate directory so we can manipulate them a bit.
+for file in *.txt 
+do 
+echo ${file}
+ID=`echo ${file} | cut -f4 -d "."`
+echo ${ID}
+awk '{print $1,$2,$3='${ID}'}' ${file} > ${file}.plot.me.txt  
+done 
+
+
+

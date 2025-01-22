@@ -102,7 +102,7 @@ done
 #####################################################
 #####################################################
 
-Nnow the output files have been generated and you need to visualize the simulated data compared to your actual data
+Now the output files have been generated and you need to visualize the simulated data compared to your actual data
 
 #To make things easier for plotting I had the simulation year as the third column for each output text file.
 #Add a third column that is the simulation name (year)
@@ -114,6 +114,148 @@ ID=`echo ${file} | cut -f4 -d "."`
 echo ${ID}
 awk '{print $1,$2,$3='${ID}'}' ${file} > ${file}.plot.me.txt  
 done 
+
+module load python/v2.7.17
+
+module load psmc
+for file in *.ms_sim.psmc 
+do 
+psmc_plot.pl -u 2.36e-8 -g 25.9 -s 10 -RM "test" ${file}.out ${file}
+done 
+
+#Add a third column that is the simulation name (year)
+for file in *.txt 
+do 
+echo ${file}
+ID=`echo ${file} | cut -f4 -d "."`
+echo ${ID}
+awk '{print $1,$2,$3='${ID}'}' ${file} > ${file}.plot.me.txt  
+done 
+
+#These are the unique names
+ls *.txt | cut -f1,2,3 -d "." | sort | uniq
+#hPSMC.z0007969_aligned_sorted_unique_autosomes.z0076728_aligned_sorted_unique_autosomes
+#hPSMC.z0007969_aligned_sorted_unique_autosomes.z0186313_aligned_sorted_unique_autosomes
+#hPSMC.z0007969_aligned_sorted_unique_autosomes.z41749_aligned_sorted_unique_autosomes
+#hPSMC.z0076728_aligned_sorted_unique_autosomes.z0186313_aligned_sorted_unique_autosomes
+#hPSMC.z0076728_aligned_sorted_unique_autosomes.z41749_aligned_sorted_unique_autosomes
+#hPSMC.z0186313_aligned_sorted_unique_autosomes.z41749_aligned_sorted_unique_autosomes
+
+mv hPSMC.z0186313_aligned_sorted_unique_autosomes.z41749_aligned_sorted_unique_autosomes*.plot.me.txt hPSMC.z0186313_aligned_sorted_unique_autosomes.z41749_aligned_sorted_unique_autosomes
+
+
+#Combine all the runs 
+#For one sample
+cat *.plot.me.txt > simulations.combined.txt
+
+cd hPSMC.z0007969_aligned_sorted_unique_autosomes.z0076728_aligned_sorted_unique_autosomes
+cat *.plot.me.txt > z0007969.z0076728.simulations.combined.txt
+
+cd hPSMC.z0007969_aligned_sorted_unique_autosomes.z0186313_aligned_sorted_unique_autosomes
+cat *.plot.me.txt > z0007969.z0186313.simulations.combined.txt
+
+cd hPSMC.z0007969_aligned_sorted_unique_autosomes.z41749_aligned_sorted_unique_autosomes
+cat *.plot.me.txt > z0007969.z41749.simulations.combined.txt
+
+cd hPSMC.z0076728_aligned_sorted_unique_autosomes.z0186313_aligned_sorted_unique_autosomes
+cat *.plot.me.txt > z0076728.z0186313.simulations.combined.txt
+
+cd hPSMC.z0076728_aligned_sorted_unique_autosomes.z41749_aligned_sorted_unique_autosomes
+cat *.plot.me.txt > z0076728.z41749.simulations.combined.txt
+
+cd hPSMC.z0186313_aligned_sorted_unique_autosomes.z41749_aligned_sorted_unique_autosomes
+cat *.plot.me.txt > z0186313.z41749.simulations.combined.txt
+
+
+z0007969.z0186313.base.txt
+#Make sure you add the empirical hpscm run to the "...simulations.combined.txt" file if it was located in a directory from where you had the simulations running. You also need to add a column like we did before to indicate the simulation year. It should be a string in order to make the plotting work. For instance I'm taking the base hpsmc.txt file (the output from the psmc_plot.pl script) here and I'm extracting the first two columns and adding a third column that will be populated with "hpsmc". This will help me differentiate which is the empirical result from the simulations. 
+for file in z0186313.z41749*.base.txt
+do 
+echo ${file}
+ID=`echo ${file} | cut -f1,2 -d "."`
+echo ${ID}
+awk '{print $1,$2,$3="hpsmc"}' z0186313.z41749*.base.txt > z0186313.z41749.plot.me.txt
+done 
+
+cat z0186313.z41749.plot.me.txt >> z0186313.z41749.simulations.combined.txt 
+
+#Note a library might be missing because I had some loaded in earlier so you may just have to load another library if you get an error.
+library(grid)
+library(ggtext)
+library(readr)
+library(svglite)
+library(dplyr)
+library(tidyverse)
+
+# Reminding myself what the Ne used in this simulation was 29,700 (but for the plot scaling use 2.97; it's divided by 10,000) 
+#z0076728.z41749 #2.97 
+
+#Read in the data
+
+z0076728.z41749.simulations.combined <- read_table("Manuscript/hPSMC/z0076728.z41749.simulations.combined.txt", col_names = FALSE, col_types = cols(X3 = col_character()))
+
+#Plot all of the simulated data
+##!Make sure you change the 2.97 to your Ne. This is important in plotting the shaded areas and drawing the red horizontal lines (indicating the 1.5*Ne and 10*Ne range where you look at how the empirical data is best encased by the simulated data).
+dataset_name <- z0076728.z41749.simulations.combined #250000-600000
+y1_lim=2.97*1.5
+y2_lim=2.97*10
+
+
+#plot.margin = margin(top, right, bottom, left)
+bbai_bmin <- ggplot() +
+  geom_step(data=dataset_name[dataset_name$X3=="hpsmc",], aes(x=X1/1000, y=X2, alpha=1, size=0.1)) +
+  geom_step(data=dataset_name[dataset_name$X3=="100000",], aes(x=X1/1000, y=X2, alpha=0.9, size=0.05)) +
+  geom_step(data=dataset_name[dataset_name$X3=="150000",], aes(x=X1/1000, y=X2, alpha=0.9, size=0.05)) +
+  geom_step(data=dataset_name[dataset_name$X3=="200000",], aes(x=X1/1000, y=X2, alpha=0.9, size=0.05)) +
+  geom_step(data=dataset_name[dataset_name$X3=="250000",], aes(x=X1/1000, y=X2, alpha=0.9, size=0.1)) +
+  geom_step(data=dataset_name[dataset_name$X3=="300000",], aes(x=X1/1000, y=X2, alpha=0.9, size=0.05)) +
+  geom_step(data=dataset_name[dataset_name$X3=="350000",], aes(x=X1/1000, y=X2, alpha=0.9, size=0.05)) +
+  geom_step(data=dataset_name[dataset_name$X3=="400000",], aes(x=X1/1000, y=X2, alpha=0.9, size=0.05)) +
+  geom_step(data=dataset_name[dataset_name$X3=="500000",], aes(x=X1/1000, y=X2, alpha=0.9, size=0.05)) +
+  geom_step(data=dataset_name[dataset_name$X3=="550000",], aes(x=X1/1000, y=X2, alpha=0.9, size=0.05)) +
+  geom_step(data=dataset_name[dataset_name$X3=="600000",], aes(x=X1/1000, y=X2, alpha=0.9, size=0.1)) +
+  geom_step(data=dataset_name[dataset_name$X3=="650000",], aes(x=X1/1000, y=X2, alpha=0.9, size=0.05)) +
+  geom_step(data=dataset_name[dataset_name$X3=="700000",], aes(x=X1/1000, y=X2, alpha=0.9, size=0.05)) +
+  geom_step(data=dataset_name[dataset_name$X3=="800000",], aes(x=X1/1000, y=X2, alpha=0.9, size=0.05)) +
+  geom_step(data=dataset_name[dataset_name$X3=="850000",], aes(x=X1/1000, y=X2, alpha=0.9, size=0.05)) +
+  geom_step(data=dataset_name[dataset_name$X3=="900000",], aes(x=X1/1000, y=X2, alpha=0.9, size=0.05)) +
+  geom_step(data=dataset_name[dataset_name$X3=="1000000",], aes(x=X1/1000, y=X2, alpha=0.9, size=0.05)) +
+  geom_step(data=dataset_name[dataset_name$X3=="1050000",], aes(x=X1/1000, y=X2, alpha=0.9, size=0.05)) +
+  geom_step(data=dataset_name[dataset_name$X3=="1100000",], aes(x=X1/1000, y=X2, alpha=0.9, size=0.05)) +
+  geom_step(data=dataset_name[dataset_name$X3=="1200000",], aes(x=X1/1000, y=X2, alpha=0.9, size=0.05)) +
+  geom_step(data=dataset_name[dataset_name$X3=="1300000",], aes(x=X1/1000, y=X2, alpha=0.9, size=0.05)) +
+  geom_step(data=dataset_name[dataset_name$X3=="1400000",], aes(x=X1/1000, y=X2, alpha=0.9, size=0.05)) +
+  geom_step(data=dataset_name[dataset_name$X3=="1500000",], aes(x=X1/1000, y=X2, alpha=0.9, size=0.05)) +
+  theme_classic() +
+  labs(
+    x = "Years before present (kya)",
+    y = "Ancestral <b><i>N<sub>e</sub></i></b> (thousands)"
+  ) +
+  theme(
+    axis.title.y = element_markdown(size = 12, face = "bold") # This ensures the title is bold and 12pt
+  ) +
+  theme(plot.title = element_text(hjust = 0.5, face = "bold", size = 12)) +
+  theme(axis.title.x = element_text(face = "bold", size=12)) +
+  theme(axis.text.x = element_text(face = "bold", size=12, colour="black")) +
+  theme(axis.text.y = element_text(face = "bold", size=12, colour="black")) +
+  #theme(axis.title.y = element_text(face = "bold", size=12)) + 
+  theme(plot.margin = unit(c(0.0, 0.5, 0.0, 0.0), "in")) +
+  coord_cartesian(xlim=c(0, 1500), ylim=c(0,35)) + 
+  scale_alpha_continuous(range=c(0.3,1), guide=FALSE) +
+  scale_size(range=c(0.2,1.5), breaks = c(0.2,1.5), guide = FALSE) +
+  labs(colour="Species") +
+  geom_hline(yintercept=y1_lim, linetype="dashed", color = "red", size=0.8) +
+  geom_hline(yintercept=y2_lim, linetype="dashed", color = "red", size=0.8) +
+  # Shade area under y_lim
+  geom_rect(aes(xmin = -Inf, xmax = Inf, ymin = -Inf, ymax = y1_lim),
+            alpha = 1/5,
+            fill = "grey") +
+  # Shade area above y_lim
+  geom_rect(aes(xmin = -Inf, xmax = Inf, ymin = y2_lim, ymax = Inf),
+            alpha = 1/5,
+            fill = "grey")
+
+
 
 
 

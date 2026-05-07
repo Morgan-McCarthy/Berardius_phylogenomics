@@ -1,0 +1,59 @@
+#!/bin/bash
+#SBATCH --job-name=heterozygosity # Job name
+#SBATCH -e heterozygosity.error
+#SBATCH --mail-type=ALL # Mail events (BEGIN, END, FAIL, ALL)
+#SBATCH --mail-user=email # Where to send mail
+#SBATCH --ntasks=1 # Run a single task
+#SBATCH --cpus-per-task=8 # Number of CPU cores per task
+#SBATCH --mem=50gb
+#SBATCH --nodes=1
+#SBATCH --time=72:00:00 # Time limit hrs:min:sec
+#SBATCH --output=heterozygosity.log # Standard output/error
+############################################
+module load angsd
+
+dir=final.nuclear.bams/
+chrs=autosomes.GCA_025265405.1_mMesDen1_primary_haplotype_genomic.txt
+output=heterozygosity/2024/
+ref=GCA_025265405.1_mMesDen1_primary_haplotype_genomic.fna
+
+for file in ${dir}*_dedup_noRepeats.bam
+do
+file_short=`basename ${file}`
+ID=`echo ${file_short} | cut -f1 -d "_"`
+if [ -f "${ID}.autosomes.saf.gz" ]
+then
+echo "${ID} exists"
+else
+angsd -GL 2 -anc ${ref} -setMinDepthInd 10 -minmapq 30 -minq 30 -uniqueonly 1 -only_proper_pairs 1 -remove_bads 1 -docounts 1 -i ${file} -ref ${ref} -P 8 -out ${output}${ID}.autosomes -doSaf 1 -rf ${chrs}
+echo "${ID} does not exist"
+fi
+done
+
+#!/bin/bash
+#SBATCH --job-name=run_realSFS # Job name
+#SBATCH -e run_realSFS.error
+#SBATCH --mail-type=ALL # Mail events (BEGIN, END, FAIL, ALL)
+#SBATCH --mail-user=email # Where to send mail
+#SBATCH --ntasks=1 # Run a single task
+#SBATCH --cpus-per-task=8 # Number of CPU cores per task
+#SBATCH --mem=100gb
+#SBATCH --nodes=1
+#SBATCH --time=24:00:00 # Time limit hrs:min:sec
+#SBATCH --output=run_realSFS.log # Standard output/error
+############################################
+module load angsd
+
+for file in *.saf.idx
+do
+ID=`echo ${file} | cut -f1 -d "."`
+realSFS ${file} -P 8 -fold 1 > ${ID}.redo.sfs
+done
+
+
+for file in *redo.sfs
+do
+shortID=`echo ${file} | cut -f1 -d "."`
+stats=`awk '{print $1,$2,$3=$1+$2,$4=$2/$3}' ${file}`
+echo "${stats} ${shortID}" >> heterozygosity.summary.txt
+done
